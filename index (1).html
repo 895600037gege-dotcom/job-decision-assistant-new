@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Decision Assistant · 求职决策助手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F5F0; --surface: #FFFFFF; --surface2: #F0EDE6;
+    --border: rgba(0,0,0,0.10); --border2: rgba(0,0,0,0.18);
+    --text: #1A1814; --text2: #6B6760; --text3: #9B9890;
+    --accent: #2D4A3E; --accent-light: #E8F0EC; --accent-text: #1A2E28;
+    --danger: #8B2020; --danger-light: #FDF0F0;
+    --warning: #7A4A10; --warning-light: #FEF6EA;
+    --success: #1A4A2E; --success-light: #EBF5EE;
+    --radius: 10px; --radius-lg: 16px;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+  .header { background: var(--accent); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header-title { font-family: var(--font-display); font-size: 22px; color: #fff; letter-spacing: -0.3px; }
+  .header-title span { font-style: italic; opacity: 0.7; font-size: 14px; display: block; font-family: var(--font-body); font-weight: 300; margin-top: 2px; }
+  .lang-toggle { display: flex; background: rgba(255,255,255,0.12); border-radius: 20px; padding: 3px; gap: 2px; }
+  .lang-btn { background: none; border: none; color: rgba(255,255,255,0.65); font-family: var(--font-body); font-size: 13px; font-weight: 500; padding: 5px 14px; border-radius: 16px; cursor: pointer; transition: all 0.2s; }
+  .lang-btn.active { background: rgba(255,255,255,0.22); color: #fff; }
+  .tabs-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; position: sticky; top: 64px; z-index: 99; }
+  .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 14px 20px; font-family: var(--font-body); font-size: 14px; font-weight: 400; color: var(--text2); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+  .main-content { flex: 1; padding: 28px; max-width: 960px; margin: 0 auto; width: 100%; }
+  .panel { display: none; } .panel.active { display: block; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .section-title { font-family: var(--font-display); font-size: 24px; letter-spacing: -0.3px; }
+  .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 10px 20px; font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.88; }
+  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-align: center; }
+  .stat-num { font-family: var(--font-display); font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 12px; color: var(--text2); }
+  .jobs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; transition: border-color 0.2s; }
+  .job-card:hover { border-color: var(--border2); }
+  .job-card-company { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .job-card-title { font-family: var(--font-display); font-size: 18px; margin-bottom: 10px; line-height: 1.3; }
+  .job-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+  .pill-stage { background: #EEF2FE; color: #3A50A8; }
+  .pill-stage.offer { background: var(--success-light); color: var(--success); }
+  .pill-stage.rejected { background: var(--danger-light); color: var(--danger); }
+  .pill-stage.screening { background: #FEF6EA; color: var(--warning); }
+  .pill-stage.interview { background: #F0EBF8; color: #5A3A8B; }
+  .pill-loc { background: var(--surface2); color: var(--text2); }
+  .job-card-salary { font-size: 13px; font-weight: 500; color: var(--accent-text); margin-bottom: 12px; }
+  .job-card-actions { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+  .btn-sm { flex: 1; background: none; border: 1px solid var(--border2); border-radius: var(--radius); padding: 7px 0; font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .btn-sm:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm.ai { border-color: var(--accent); color: var(--accent); }
+  .btn-sm.ai:hover { background: var(--accent-light); }
+  .btn-sm.danger { color: var(--danger); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .empty-state h3 { font-family: var(--font-display); font-size: 20px; color: var(--text); margin-bottom: 8px; }
+  .empty-state p { font-size: 14px; margin-bottom: 20px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius-lg); padding: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; position: relative; }
+  .modal-title { font-family: var(--font-display); font-size: 22px; margin-bottom: 22px; }
+  .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 18px; color: var(--text2); cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .modal-close:hover { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { margin-bottom: 0; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
+  .form-input, .form-select, .form-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 10px 14px; font-family: var(--font-body); font-size: 14px; color: var(--text); outline: none; transition: border-color 0.15s; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { min-height: 90px; resize: vertical; }
+  .form-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .btn-secondary { background: none; border: 1px solid var(--border2); color: var(--text2); border-radius: var(--radius); padding: 10px 20px; font-family: var(--font-body); font-size: 14px; cursor: pointer; }
+  .ai-panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .ai-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; flex-shrink: 0; }
+  .ai-panel-title { font-family: var(--font-display); font-size: 18px; }
+  .ai-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .risk-item { padding: 14px; border-radius: var(--radius); border: 1px solid transparent; }
+  .risk-item.red { background: var(--danger-light); border-color: #F5C0C0; }
+  .risk-item.amber { background: var(--warning-light); border-color: #F9D9A8; }
+  .risk-item.green { background: var(--success-light); border-color: #B8DEC4; }
+  .risk-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+  .risk-item.red .risk-label { color: var(--danger); }
+  .risk-item.amber .risk-label { color: var(--warning); }
+  .risk-item.green .risk-label { color: var(--success); }
+  .risk-text { font-size: 13px; line-height: 1.55; color: var(--text); }
+  .ai-verdict { background: var(--accent-light); border: 1px solid rgba(45,74,62,0.2); border-radius: var(--radius); padding: 14px 16px; font-size: 14px; line-height: 1.65; color: var(--accent-text); }
+  .ai-loading { display: flex; align-items: center; gap: 10px; color: var(--text2); font-size: 14px; padding: 24px 0; }
+  .dots span { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin: 0 2px; animation: bounce 1.2s infinite; }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100%{transform:scale(0.7);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+  .notes-list { display: flex; flex-direction: column; gap: 14px; }
+  .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+  .note-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .note-job-ref { font-size: 12px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; }
+  .note-date { font-size: 12px; color: var(--text3); }
+  .note-round { font-family: var(--font-display); font-size: 16px; margin-bottom: 8px; }
+  .note-body { font-size: 14px; line-height: 1.6; color: var(--text2); white-space: pre-line; }
+  .note-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .note-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); color: var(--text2); }
+  .api-banner { background: var(--warning-light); border: 1px solid #F9D9A8; border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; font-size: 13px; color: var(--warning); flex-wrap: wrap; }
+  .api-banner input { flex: 1; min-width: 180px; background: #fff; border: 1px solid #F9D9A8; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: var(--font-body); color: var(--text); outline: none; }
+  .api-banner button { background: var(--warning); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-family: var(--font-body); cursor: pointer; white-space: nowrap; }
+  .api-banner.saved { background: var(--success-light); border-color: #B8DEC4; color: var(--success); }
+  .feedback-float { position: fixed; bottom: 24px; right: 24px; z-index: 500; }
+  .feedback-btn { background: var(--accent); color: #fff; border: none; border-radius: 50px; padding: 12px 22px; font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 16px rgba(45,74,62,0.3); transition: opacity 0.15s; }
+  .feedback-btn:hover { opacity: 0.88; }
+  .feedback-box { display: none; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 20px; width: 300px; margin-bottom: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+  .feedback-box.open { display: block; }
+  .feedback-box h4 { font-family: var(--font-display); font-size: 17px; margin-bottom: 12px; }
+  .feedback-stars { display: flex; gap: 8px; margin-bottom: 14px; }
+  .star-btn { background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.3; transition: opacity 0.15s; padding: 0; }
+  .star-btn.active { opacity: 1; }
+  .feedback-box textarea { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 10px 12px; font-family: var(--font-body); font-size: 13px; color: var(--text); resize: none; min-height: 70px; outline: none; margin-bottom: 12px; }
+  .feedback-box textarea:focus { border-color: var(--accent); }
+  .feedback-sent { text-align: center; padding: 16px 0; color: var(--success); font-size: 14px; }
+  @media (max-width: 600px) {
+    .main-content { padding: 16px; } .form-row { grid-template-columns: 1fr; }
+    .risk-grid { grid-template-columns: 1fr; } .stats-bar { grid-template-columns: 1fr 1fr; }
+    .jobs-grid { grid-template-columns: 1fr; } .header { padding: 14px 16px; }
+    .tabs-bar { padding: 0 16px; top: 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="header">
+    <div class="header-title">Job Decision Assistant<span id="header-sub">求职决策助手</span></div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('zh')">中文</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('jobs')" id="tab-jobs" data-zh="我的岗位" data-en="My Jobs">我的岗位</button>
+    <button class="tab-btn" onclick="switchTab('notes')" id="tab-notes" data-zh="面试笔记" data-en="Interview Notes">面试笔记</button>
+  </div>
+  <div class="main-content">
+    <div class="api-banner" id="api-banner"></div>
+    <div id="panel-jobs" class="panel active">
+      <div class="stats-bar" id="stats-bar"></div>
+      <div class="section-header">
+        <h2 class="section-title" id="title-jobs" data-zh="申请追踪" data-en="Application Tracker">申请追踪</h2>
+        <button class="btn-primary" onclick="openJobModal()" id="btn-add-job" data-zh="+ 添加岗位" data-en="+ Add Job">+ 添加岗位</button>
+      </div>
+      <div class="jobs-grid" id="jobs-grid"></div>
+    </div>
+    <div id="panel-notes" class="panel">
+      <div class="section-header">
+        <h2 class="section-title" id="title-notes" data-zh="面试笔记" data-en="Interview Notes">面试笔记</h2>
+        <button class="btn-primary" onclick="openNoteModal()" id="btn-add-note" data-zh="+ 新增笔记" data-en="+ Add Note">+ 新增笔记</button>
+      </div>
+      <div class="notes-list" id="notes-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="feedback-float">
+  <div class="feedback-box" id="feedback-box">
+    <h4 id="fb-title">使用体验如何？</h4>
+    <div class="feedback-stars" id="fb-stars">
+      <button class="star-btn" onclick="rateStar(1)">★</button>
+      <button class="star-btn" onclick="rateStar(2)">★</button>
+      <button class="star-btn" onclick="rateStar(3)">★</button>
+      <button class="star-btn" onclick="rateStar(4)">★</button>
+      <button class="star-btn" onclick="rateStar(5)">★</button>
+    </div>
+    <textarea id="fb-text" placeholder="有什么建议或遇到的问题？（选填）"></textarea>
+    <button class="btn-primary" style="width:100%" onclick="submitFeedback()" id="fb-submit">提交回馈</button>
+  </div>
+  <button class="feedback-btn" onclick="toggleFeedback()" id="feedback-toggle-btn">💬 回馈意见</button>
+</div>
+
+<div class="modal-overlay" id="modal-job">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-job')">✕</button>
+    <h2 class="modal-title" id="modal-job-title" data-zh="添加岗位" data-en="Add Job">添加岗位</h2>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" data-zh="公司名称" data-en="Company">公司名称</label><input type="text" class="form-input" id="inp-company" placeholder="e.g. ByteDance"></div>
+      <div class="form-group"><label class="form-label" data-zh="岗位名称" data-en="Position">岗位名称</label><input type="text" class="form-input" id="inp-position" placeholder="e.g. Product Manager"></div>
+      <div class="form-group"><label class="form-label" data-zh="工作地点" data-en="Location">工作地点</label><input type="text" class="form-input" id="inp-location" placeholder="e.g. 上海 / Shanghai"></div>
+      <div class="form-group"><label class="form-label" data-zh="薪资范围" data-en="Salary Range">薪资范围</label><input type="text" class="form-input" id="inp-salary" placeholder="e.g. 30–40k"></div>
+      <div class="form-group"><label class="form-label" data-zh="当前阶段" data-en="Stage">当前阶段</label>
+        <select class="form-select" id="inp-stage">
+          <option value="screening" data-zh="初步筛选" data-en="Screening">初步筛选</option>
+          <option value="interview" data-zh="面试中" data-en="Interview">面试中</option>
+          <option value="offer" data-zh="已拿Offer" data-en="Offer">已拿Offer</option>
+          <option value="rejected" data-zh="已拒绝/未通过" data-en="Rejected">已拒绝/未通过</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label" data-zh="申请日期" data-en="Applied Date">申请日期</label><input type="date" class="form-input" id="inp-date"></div>
+      <div class="form-group full"><label class="form-label" data-zh="岗位描述 JD（供 AI 分析）" data-en="Job Description (for AI analysis)">岗位描述 JD（供 AI 分析）</label><textarea class="form-textarea" id="inp-jd" style="min-height:100px" placeholder="粘贴JD原文，AI将帮你分析潜在风险和雷区..."></textarea></div>
+      <div class="form-group full"><label class="form-label" data-zh="备注" data-en="Notes">备注</label><textarea class="form-textarea" id="inp-notes-inline" placeholder="内推来源、联系人、注意事项..."></textarea></div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-job')">取消</button>
+      <button class="btn-primary" onclick="saveJob()">保存岗位</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-note">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-note')">✕</button>
+    <h2 class="modal-title" data-zh="面试笔记" data-en="Interview Note">面试笔记</h2>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" data-zh="关联岗位" data-en="Linked Job">关联岗位</label><select class="form-select" id="inp-note-job"></select></div>
+      <div class="form-group"><label class="form-label" data-zh="面试轮次" data-en="Interview Round">面试轮次</label><input type="text" class="form-input" id="inp-note-round" placeholder="e.g. 一面 / HR面 / Final"></div>
+      <div class="form-group full"><label class="form-label" data-zh="面试记录" data-en="Interview Notes">面试记录</label><textarea class="form-textarea" id="inp-note-content" style="min-height:120px" placeholder="面试官问题、你的回答、整体感受..."></textarea></div>
+      <div class="form-group full"><label class="form-label" data-zh="标签（逗号分隔）" data-en="Tags (comma separated)">标签（逗号分隔）</label><input type="text" class="form-input" id="inp-note-tags" placeholder="e.g. 算法题, 行为面试, 薪资谈判"></div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-note')">取消</button>
+      <button class="btn-primary" onclick="saveNote()">保存笔记</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-ai">
+  <div class="modal" style="max-width:620px;">
+    <button class="modal-close" onclick="closeModal('modal-ai')">✕</button>
+    <div class="ai-panel-header">
+      <div class="ai-icon">✦</div>
+      <div><div class="ai-panel-title" id="ai-panel-job-name"></div><div class="ai-subtitle" id="ai-modal-subtitle" data-zh="AI 岗位风险分析" data-en="AI Risk Analysis">AI 岗位风险分析</div></div>
+    </div>
+    <div id="ai-loading" class="ai-loading"><div class="dots"><span></span><span></span><span></span></div><span id="ai-loading-text" data-zh="正在分析岗位信息..." data-en="Analyzing job details...">正在分析岗位信息...</span></div>
+    <div id="ai-result" style="display:none;"></div>
+  </div>
+</div>
+
+<script>
+let lang='zh',jobs=JSON.parse(localStorage.getItem('jda_jobs')||'[]'),notes=JSON.parse(localStorage.getItem('jda_notes')||'[]'),editingJobId=null,feedbackOpen=false,selectedStars=0,apiKey=localStorage.getItem('jda_api_key')||'';
+const T={zh:{total:'全部申请',interviews:'面试中',offers:'已拿Offer',notesCount:'面试笔记',noJobs:'还没有添加岗位',noJobsSub:'点击右上角开始记录你的第一个申请',noNotes:'还没有面试笔记',noNotesSub:'完成面试后在这里记录',addFirst:'+ 添加第一个岗位',stages:{screening:'初步筛选',interview:'面试中',offer:'Offer',rejected:'未通过'},edit:'编辑',analyze:'AI分析',del:'删除',aiError:'分析失败，请检查 API Key 是否正确。',noKey:'请先输入 API Key 再使用 AI 分析。',fbPlaceholder:'有什么建议或遇到的问题？（选填）',fbThanks:'谢谢你的回馈！ ✓'},en:{total:'Total',interviews:'Interviews',offers:'Offers',notesCount:'Notes',noJobs:'No jobs added yet',noJobsSub:'Click the button to add your first application',noNotes:'No interview notes yet',noNotesSub:'Record notes after each interview',addFirst:'+ Add First Job',stages:{screening:'Screening',interview:'Interview',offer:'Offer',rejected:'Rejected'},edit:'Edit',analyze:'AI Analyze',del:'Delete',aiError:'Analysis failed. Check your API key.',noKey:'Please enter your API Key to use AI analysis.',fbPlaceholder:'Any suggestions or issues? (optional)',fbThanks:'Thanks for your feedback! ✓'}};
+
+function setLang(l){lang=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',(l==='zh'&&b.textContent==='中文')||(l==='en'&&b.textContent==='EN')));document.querySelectorAll('[data-zh]').forEach(el=>{if(el.tagName==='INPUT'&&el.type!=='button')return;el.textContent=el.dataset[l];});
+  const phMap={zh:{company:'e.g. ByteDance',position:'e.g. Product Manager',location:'e.g. 上海',salary:'e.g. 30–40k',jd:'粘贴JD原文，AI将帮你分析潜在风险和雷区...',notesInline:'内推来源、联系人、注意事项...',noteRound:'e.g. 一面 / HR面 / Final',noteContent:'面试官问题、你的回答、整体感受...',noteTags:'e.g. 算法题, 行为面试, 薪资谈判'},en:{company:'e.g. ByteDance',position:'e.g. Product Manager',location:'e.g. Shanghai',salary:'e.g. 30–40k',jd:'Paste JD here — AI will analyze risks and red flags...',notesInline:'Referral source, contact, notes...',noteRound:'e.g. Phone Screen / Final Round',noteContent:'Questions asked, your answers, overall impression...',noteTags:'e.g. coding, behavioral, salary negotiation'}};
+  const pm=phMap[l];
+  document.getElementById('inp-company').placeholder=pm.company;
+  document.getElementById('inp-position').placeholder=pm.position;
+  document.getElementById('inp-location').placeholder=pm.location;
+  document.getElementById('inp-salary').placeholder=pm.salary;
+  document.getElementById('inp-jd').placeholder=pm.jd;
+  document.getElementById('inp-notes-inline').placeholder=pm.notesInline;
+  document.getElementById('inp-note-round').placeholder=pm.noteRound;
+  document.getElementById('inp-note-content').placeholder=pm.noteContent;
+  document.getElementById('inp-note-tags').placeholder=pm.noteTags;
+  document.querySelectorAll('#inp-stage option').forEach(o=>{if(o.dataset[l])o.textContent=o.dataset[l];});
+  document.getElementById('ai-modal-subtitle').textContent=l==='zh'?'AI 岗位风险分析':'AI Risk Analysis';
+  document.getElementById('ai-loading-text').textContent=l==='zh'?'正在分析岗位信息...':'Analyzing job details...';
+  document.getElementById('fb-text').placeholder=T[l].fbPlaceholder;
+  updateApiBanner();renderStats();renderJobs();renderNotes();}
+
+function updateApiBanner(){const b=document.getElementById('api-banner');if(apiKey){b.className='api-banner saved';b.innerHTML=`<span>${lang==='zh'?'✓ API Key 已设置，AI 分析功能已启用':'✓ API Key saved — AI analysis enabled'}</span><button onclick="clearApiKey()" style="background:none;border:1px solid currentColor;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:inherit;">${lang==='zh'?'更换':'Change'}</button>`;}else{b.className='api-banner';b.innerHTML=`<span>${lang==='zh'?'🔑 输入 Claude API Key 启用 AI 分析功能':'🔑 Enter Claude API Key to enable AI analysis'}</span><input type="password" id="api-key-input" placeholder="sk-ant-..." /><button onclick="saveApiKey()">${lang==='zh'?'保存':'Save'}</button>`;}}
+
+function saveApiKey(){const v=document.getElementById('api-key-input')?.value?.trim();if(!v)return;apiKey=v;localStorage.setItem('jda_api_key',apiKey);updateApiBanner();}
+function clearApiKey(){apiKey='';localStorage.removeItem('jda_api_key');updateApiBanner();}
+function switchTab(t){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('panel-'+t).classList.add('active');document.getElementById('tab-'+t).classList.add('active');}
+function saveToStorage(){localStorage.setItem('jda_jobs',JSON.stringify(jobs));localStorage.setItem('jda_notes',JSON.stringify(notes));}
+function openJobModal(id){editingJobId=id||null;if(id){const j=jobs.find(x=>x.id===id);document.getElementById('inp-company').value=j.company;document.getElementById('inp-position').value=j.position;document.getElementById('inp-location').value=j.location||'';document.getElementById('inp-salary').value=j.salary||'';document.getElementById('inp-stage').value=j.stage;document.getElementById('inp-date').value=j.date||'';document.getElementById('inp-jd').value=j.jd||'';document.getElementById('inp-notes-inline').value=j.notes||'';document.getElementById('modal-job-title').textContent=lang==='zh'?'编辑岗位':'Edit Job';}else{['company','position','location','salary','jd','notes-inline'].forEach(f=>document.getElementById('inp-'+f).value='');document.getElementById('inp-stage').value='screening';document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];document.getElementById('modal-job-title').textContent=lang==='zh'?'添加岗位':'Add Job';}document.getElementById('modal-job').classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function saveJob(){const company=document.getElementById('inp-company').value.trim(),position=document.getElementById('inp-position').value.trim();if(!company||!position)return;const job={id:editingJobId||Date.now().toString(),company,position,location:document.getElementById('inp-location').value.trim(),salary:document.getElementById('inp-salary').value.trim(),stage:document.getElementById('inp-stage').value,date:document.getElementById('inp-date').value,jd:document.getElementById('inp-jd').value.trim(),notes:document.getElementById('inp-notes-inline').value.trim()};if(editingJobId){const idx=jobs.findIndex(x=>x.id===editingJobId);jobs[idx]=job;}else{jobs.unshift(job);}saveToStorage();closeModal('modal-job');renderStats();renderJobs();}
+function deleteJob(id){if(!confirm(lang==='zh'?'确定删除此岗位及相关笔记？':'Delete this job and its notes?'))return;jobs=jobs.filter(j=>j.id!==id);notes=notes.filter(n=>n.jobId!==id);saveToStorage();renderStats();renderJobs();renderNotes();}
+function renderStats(){const t=T[lang];document.getElementById('stats-bar').innerHTML=`<div class="stat-card"><div class="stat-num">${jobs.length}</div><div class="stat-label">${t.total}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='interview').length}</div><div class="stat-label">${t.interviews}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='offer').length}</div><div class="stat-label">${t.offers}</div></div><div class="stat-card"><div class="stat-num">${notes.length}</div><div class="stat-label">${t.notesCount}</div></div>`;}
+function renderJobs(){const t=T[lang],grid=document.getElementById('jobs-grid');if(jobs.length===0){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><h3>${t.noJobs}</h3><p>${t.noJobsSub}</p><button class="btn-primary" onclick="openJobModal()">${t.addFirst}</button></div>`;return;}grid.innerHTML=jobs.map(j=>`<div class="job-card"><div class="job-card-company">${j.company}</div><div class="job-card-title">${j.position}</div><div class="job-card-meta"><span class="pill pill-stage ${j.stage}">${t.stages[j.stage]}</span>${j.location?`<span class="pill pill-loc">${j.location}</span>`:''}</div>${j.salary?`<div class="job-card-salary">${j.salary}</div>`:''}<div class="job-card-actions"><button class="btn-sm" onclick="openJobModal('${j.id}')">${t.edit}</button><button class="btn-sm ai" onclick="runAI('${j.id}')">${t.analyze}</button><button class="btn-sm danger" onclick="deleteJob('${j.id}')">${t.del}</button></div></div>`).join('');}
+function openNoteModal(){const sel=document.getElementById('inp-note-job');if(jobs.length===0){alert(lang==='zh'?'请先添加一个岗位再记录笔记。':'Please add a job first.');return;}sel.innerHTML=jobs.map(j=>`<option value="${j.id}">${j.company} — ${j.position}</option>`).join('');['note-round','note-content','note-tags'].forEach(f=>document.getElementById('inp-'+f).value='');document.getElementById('modal-note').classList.add('open');}
+function saveNote(){const content=document.getElementById('inp-note-content').value.trim();if(!content)return;notes.unshift({id:Date.now().toString(),jobId:document.getElementById('inp-note-job').value,round:document.getElementById('inp-note-round').value.trim()||(lang==='zh'?'面试记录':'Interview'),content,tags:document.getElementById('inp-note-tags').value.split(',').map(s=>s.trim()).filter(Boolean),date:new Date().toLocaleDateString(lang==='zh'?'zh-CN':'en-US')});saveToStorage();closeModal('modal-note');renderStats();renderNotes();}
+function renderNotes(){const t=T[lang],list=document.getElementById('notes-list');if(notes.length===0){list.innerHTML=`<div class="empty-state"><h3>${t.noNotes}</h3><p>${t.noNotesSub}</p></div>`;return;}list.innerHTML=notes.map(n=>{const j=jobs.find(x=>x.id===n.jobId),ref=j?`${j.company} — ${j.position}`:(lang==='zh'?'已删除岗位':'Deleted job');return`<div class="note-card"><div class="note-card-header"><div class="note-job-ref">${ref}</div><div class="note-date">${n.date}</div></div><div class="note-round">${n.round}</div><div class="note-body">${n.content}</div>${n.tags.length?`<div class="note-tags">${n.tags.map(tag=>`<span class="note-tag">${tag}</span>`).join('')}</div>`:''}</div>`;}).join('');}
+
+async function runAI(jobId){if(!apiKey){alert(T[lang].noKey);return;}const job=jobs.find(j=>j.id===jobId);if(!job)return;document.getElementById('ai-panel-job-name').textContent=`${job.company} · ${job.position}`;document.getElementById('ai-loading').style.display='flex';document.getElementById('ai-result').style.display='none';document.getElementById('modal-ai').classList.add('open');const prompt=lang==='zh'?`你是专业求职顾问，分析这个岗位的潜在风险。\n公司：${job.company}\n岗位：${job.position}\n地点：${job.location||'未知'}\n薪资：${job.salary||'未知'}\nJD：${job.jd||'未提供，根据公司和岗位名称推测'}\n备注：${job.notes||'无'}\n\n只返回以下JSON，不要额外文字：\n{"risks":[{"level":"red","title":"高风险雷区","text":"说明"},{"level":"amber","title":"需要关注","text":"说明"},{"level":"green","title":"积极信号","text":"说明"}],"verdict":"综合决策建议（2-3句）"}`:`You are a career advisor. Analyze this job.\nCompany:${job.company}\nPosition:${job.position}\nLocation:${job.location||'Unknown'}\nSalary:${job.salary||'Unknown'}\nJD:${job.jd||'Not provided'}\nNotes:${job.notes||'None'}\n\nReturn ONLY JSON:\n{"risks":[{"level":"red","title":"High Risk","text":"..."},{"level":"amber","title":"Watch Out","text":"..."},{"level":"green","title":"Positive","text":"..."}],"verdict":"Recommendation (2-3 sentences)"}`;
+try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await res.json();const raw=data.content.map(i=>i.text||'').join('');const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());document.getElementById('ai-result').innerHTML=`<div class="risk-grid">${parsed.risks.map(r=>`<div class="risk-item ${r.level}"><div class="risk-label">${r.title}</div><div class="risk-text">${r.text}</div></div>`).join('')}</div><div class="ai-verdict"><strong>${lang==='zh'?'综合建议：':'Verdict: '}</strong>${parsed.verdict}</div>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}catch(e){document.getElementById('ai-result').innerHTML=`<p style="color:var(--danger);font-size:14px;padding:16px 0;">${T[lang].aiError}</p>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}}
+
+function toggleFeedback(){feedbackOpen=!feedbackOpen;document.getElementById('feedback-box').classList.toggle('open',feedbackOpen);}
+function rateStar(n){selectedStars=n;document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<n));}
+function submitFeedback(){const box=document.getElementById('feedback-box');box.innerHTML=`<div class="feedback-sent">${T[lang].fbThanks}</div>`;setTimeout(()=>{feedbackOpen=false;box.classList.remove('open');box.innerHTML=`<h4>${lang==='zh'?'使用体验如何？':"How's your experience?"}</h4><div class="feedback-stars">${[1,2,3,4,5].map(i=>`<button class="star-btn" onclick="rateStar(${i})">★</button>`).join('')}</div><textarea id="fb-text" placeholder="${T[lang].fbPlaceholder}"></textarea><button class="btn-primary" style="width:100%" onclick="submitFeedback()">${lang==='zh'?'提交回馈':'Submit Feedback'}</button>`;selectedStars=0;},2500);}
+
+updateApiBanner();renderStats();renderJobs();renderNotes();
+</script>
+</body>
+</html>
