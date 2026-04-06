@@ -287,7 +287,7 @@ function toggleFeedback(){feedbackOpen=!feedbackOpen;document.getElementById('fe
 function rateStar(n){selectedStars=n;document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<n));}
 function submitFeedback(){const box=document.getElementById('feedback-box');box.innerHTML=`<div class="feedback-sent">${T[lang].fbThanks}</div>`;setTimeout(()=>{feedbackOpen=false;box.classList.remove('open');box.innerHTML=`<h4>${lang==='zh'?'使用体验如何？':"How's your experience?"}</h4><div class="feedback-stars">${[1,2,3,4,5].map(i=>`<button class="star-btn" onclick="rateStar(${i})">★</button>`).join('')}</div><textarea id="fb-text" placeholder="${T[lang].fbPlaceholder}"></textarea><button class="btn-primary" style="width:100%" onclick="submitFeedback()">${lang==='zh'?'提交回馈':'Submit Feedback'}</button>`;selectedStars=0;},2500);}
 
-updateApiBanner();renderStats();renderJobs();renderNotes();
+setLang('en');updateApiBanner();renderStats();renderJobs();renderNotes();
 </script>
 </body>
 </html>
