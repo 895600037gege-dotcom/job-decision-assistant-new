@@ -289,30 +289,28 @@ function submitFeedback() {
   const stars = selectedStars;
   const text = document.getElementById('fb-text').value;
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbxwJQ0h0_unxcmSZZ3aVQL4b_Hj5W2rmTPFbFUDs3EyW3x-mTajt5L3shHe5NTwqzAdZQ/exec';
-  
+
   if (stars === 0) {
     alert(lang === 'zh' ? '请先选择评分！' : 'Please select a rating first!');
     return;
   }
-  
+
   const submitBtn = document.getElementById('fb-submit');
-  const originalBtnText = submitBtn.textContent;
   submitBtn.textContent = lang === 'zh' ? '提交中...' : 'Submitting...';
   submitBtn.disabled = true;
-  
+
+  // Use URLSearchParams to avoid CORS preflight issues with Google Apps Script
+  const params = new URLSearchParams();
+  params.append('stars', stars);
+  params.append('feedback', text);
+  params.append('userAgent', navigator.userAgent);
+
   fetch(webAppUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      stars: stars,
-      feedback: text,
-      userAgent: navigator.userAgent
-    })
+    body: params   // sends as application/x-www-form-urlencoded, no preflight
   })
   .then(response => {
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   })
   .then(data => {
@@ -323,10 +321,9 @@ function submitFeedback() {
           ${lang === 'zh' ? '✓ 谢谢你的反馈！' : '✓ Thanks for your feedback!'}
         </div>
       `;
-      
       setTimeout(() => {
         resetFeedbackBox();
-        toggleFeedback(); 
+        toggleFeedback();
       }, 2000);
     } else {
       throw new Error('Invalid response');
@@ -340,13 +337,10 @@ function submitFeedback() {
         ${lang === 'zh' ? '✗ 提交失败，请稍后重试' : '✗ Submission failed, please try again'}
       </div>
     `;
-    
-    setTimeout(() => {
-      resetFeedbackBox();
-    }, 2000);
+    setTimeout(() => resetFeedbackBox(), 2000);
   });
 }
-
+ 
 function resetFeedbackBox() {
   const box = document.getElementById('feedback-box');
   box.innerHTML = `
