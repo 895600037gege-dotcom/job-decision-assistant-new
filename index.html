@@ -290,13 +290,11 @@ function submitFeedback() {
   const text = document.getElementById('fb-text').value;
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbxwJQ0h0_unxcmSZZ3aVQL4b_Hj5W2rmTPFbFUDs3EyW3x-mTajt5L3shHe5NTwqzAdZQ/exec';
   
-  // 检查用户是否选择了评分
   if (stars === 0) {
     alert(lang === 'zh' ? '请先选择评分！' : 'Please select a rating first!');
     return;
   }
   
-  // 显示提交中的状态
   const submitBtn = document.getElementById('fb-submit');
   const originalBtnText = submitBtn.textContent;
   submitBtn.textContent = lang === 'zh' ? '提交中...' : 'Submitting...';
@@ -319,7 +317,6 @@ function submitFeedback() {
   })
   .then(data => {
     if (data.status === 'success') {
-      // 显示成功消息
       const feedbackBox = document.getElementById('feedback-box');
       feedbackBox.innerHTML = `
         <div class="feedback-sent">
@@ -327,10 +324,9 @@ function submitFeedback() {
         </div>
       `;
       
-      // 2秒后重置表单并关闭
       setTimeout(() => {
         resetFeedbackBox();
-        toggleFeedback(); // 关闭反馈框
+        toggleFeedback(); 
       }, 2000);
     } else {
       throw new Error('Invalid response');
@@ -338,7 +334,6 @@ function submitFeedback() {
   })
   .catch(error => {
     console.error('Error details:', error);
-    // 显示错误消息
     const feedbackBox = document.getElementById('feedback-box');
     feedbackBox.innerHTML = `
       <div class="feedback-sent" style="color: var(--danger);">
@@ -355,7 +350,7 @@ function submitFeedback() {
 function resetFeedbackBox() {
   const box = document.getElementById('feedback-box');
   box.innerHTML = `
-    <h4 id="fb-title" data-zh="使用体验如何？" data-en="How's your experience?">使用体验如何？</h4>
+    <h4 id="fb-title" data-zh="使用体验如何？" data-en="How's your experience?">How's your experience?</h4>
     <div class="feedback-stars" id="fb-stars">
       <button class="star-btn" onclick="rateStar(1)">★</button>
       <button class="star-btn" onclick="rateStar(2)">★</button>
