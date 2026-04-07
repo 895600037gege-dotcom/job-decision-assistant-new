@@ -290,33 +290,27 @@ function submitFeedback() {
   const text = document.getElementById('fb-text').value;
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbwR-zlW9CfTGOuadCLbToGq6ewQ4tMH2tFSKZb5teeaXqSW-v61LnYTzFnMGaRE8QlRjw/exec';
   
+  console.log('Sending data:', { stars, text }); 
+  
   fetch(webAppUrl, {
     method: 'POST',
+    mode: 'no-cors', 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       stars: stars,
       feedback: text,
       userAgent: navigator.userAgent
     })
-  })
-  .then(response => {
+  }).then(response => {
+    console.log('Response:', response); 
     if (response.ok) {
-      const box = document.getElementById('feedback-box');
-      const thanksMsg = lang === 'zh' ? '感谢您的反馈！' : 'Thank you for your feedback!';
-      box.innerHTML = `<div class="feedback-sent">${thanksMsg}</div>`;
-      setTimeout(() => {
-        feedbackOpen = false;
-        box.classList.remove('open');
-        resetFeedbackBox();
-      }, 2500);
     } else {
-      const errorMsg = lang === 'zh' ? '提交失败，请重试' : 'Submission failed, please retry';
-      alert(errorMsg);
+      console.error('Response not OK:', response.status);
+      alert(`提交失败: ${response.status}`);
     }
-  })
-  .catch(error => {
-    const errorMsg = lang === 'zh' ? '网络错误，请检查连接' : 'Network error, please check connection';
-    alert(errorMsg);
+  }).catch(error => {
+    console.error('Error details:', error);
+    alert(`提交失败: ${error.message}`);
   });
 }
 
