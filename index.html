@@ -290,27 +290,65 @@ function submitFeedback() {
   const text = document.getElementById('fb-text').value;
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbwR-zlW9CfTGOuadCLbToGq6ewQ4tMH2tFSKZb5teeaXqSW-v61LnYTzFnMGaRE8QlRjw/exec';
   
-  console.log('Sending data:', { stars, text }); 
+  // 检查用户是否选择了评分
+  if (stars === 0) {
+    alert(lang === 'zh' ? '请先选择评分！' : 'Please select a rating first!');
+    return;
+  }
+  
+  // 显示提交中的状态
+  const submitBtn = document.getElementById('fb-submit');
+  const originalBtnText = submitBtn.textContent;
+  submitBtn.textContent = lang === 'zh' ? '提交中...' : 'Submitting...';
+  submitBtn.disabled = true;
   
   fetch(webAppUrl, {
     method: 'POST',
-    mode: 'no-cors', 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       stars: stars,
       feedback: text,
       userAgent: navigator.userAgent
     })
-  }).then(response => {
-    console.log('Response:', response); 
-    if (response.ok) {
-    } else {
-      console.error('Response not OK:', response.status);
-      alert(`提交失败: ${response.status}`);
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
-  }).catch(error => {
+    return response.json();
+  })
+  .then(data => {
+    if (data.status === 'success') {
+      // 显示成功消息
+      const feedbackBox = document.getElementById('feedback-box');
+      feedbackBox.innerHTML = `
+        <div class="feedback-sent">
+          ${lang === 'zh' ? '✓ 谢谢你的反馈！' : '✓ Thanks for your feedback!'}
+        </div>
+      `;
+      
+      // 2秒后重置表单并关闭
+      setTimeout(() => {
+        resetFeedbackBox();
+        toggleFeedback(); // 关闭反馈框
+      }, 2000);
+    } else {
+      throw new Error('Invalid response');
+    }
+  })
+  .catch(error => {
     console.error('Error details:', error);
-    alert(`提交失败: ${error.message}`);
+    // 显示错误消息
+    const feedbackBox = document.getElementById('feedback-box');
+    feedbackBox.innerHTML = `
+      <div class="feedback-sent" style="color: var(--danger);">
+        ${lang === 'zh' ? '✗ 提交失败，请稍后重试' : '✗ Submission failed, please try again'}
+      </div>
+    `;
+    
+    setTimeout(() => {
+      resetFeedbackBox();
+    }, 2000);
   });
 }
 
@@ -325,8 +363,8 @@ function resetFeedbackBox() {
       <button class="star-btn" onclick="rateStar(4)">★</button>
       <button class="star-btn" onclick="rateStar(5)">★</button>
     </div>
-    <textarea id="fb-text" placeholder="有什么建议或遇到的问题？（选填）"></textarea>
-    <button class="btn-primary" style="width:100%" onclick="submitFeedback()" id="fb-submit" data-zh="提交回馈" data-en="Submit Feedback">提交回馈</button>
+    <textarea id="fb-text" placeholder="${lang === 'zh' ? '有什么建议或遇到的问题？（选填）' : 'Any suggestions or issues? (optional)'}"></textarea>
+    <button class="btn-primary" style="width:100%" onclick="submitFeedback()" id="fb-submit" data-zh="提交回馈" data-en="Submit Feedback">${lang === 'zh' ? '提交回馈' : 'Submit Feedback'}</button>
   `;
   selectedStars = 0;
   document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
