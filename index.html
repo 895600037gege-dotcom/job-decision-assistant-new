@@ -288,10 +288,13 @@ function rateStar(n){selectedStars=n;document.querySelectorAll('.star-btn').forE
 function submitFeedback() {
   const stars = selectedStars;
   const text = document.getElementById('fb-text').value;
-  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwR-zlW9CfTGOuadCLbToGq6ewQ4tMH2tFSKZb5teeaXqSW-v61LnYTzFnMGaRE8QlRjw/exec';  
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwR-zlW9CfTGOuadCLbToGq6ewQ4tMH2tFSKZb5teeaXqSW-v61LnYTzFnMGaRE8QlRjw/exec';
+  
+  console.log('Sending data:', { stars, text }); 
   
   fetch(webAppUrl, {
     method: 'POST',
+    mode: 'no-cors', 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       stars: stars,
@@ -299,18 +302,15 @@ function submitFeedback() {
       userAgent: navigator.userAgent
     })
   }).then(response => {
+    console.log('Response:', response); 
     if (response.ok) {
-      const box = document.getElementById('feedback-box');
-      box.innerHTML = `<div class="feedback-sent">${T[lang].fbThanks}</div>`;
-      setTimeout(() => {
-        feedbackOpen = false;
-        box.classList.remove('open');
-        resetFeedbackBox();
-      }, 2500);
+    } else {
+      console.error('Response not OK:', response.status);
+      alert(`提交失败: ${response.status}`);
     }
   }).catch(error => {
-    console.error('Error:', error);
-    alert('提交失败，请重试');
+    console.error('Error details:', error);
+    alert(`提交失败: ${error.message}`);
   });
 }
 
