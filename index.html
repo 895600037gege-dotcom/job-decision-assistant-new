@@ -285,7 +285,53 @@ try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST'
 
 function toggleFeedback(){feedbackOpen=!feedbackOpen;document.getElementById('feedback-box').classList.toggle('open',feedbackOpen);}
 function rateStar(n){selectedStars=n;document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<n));}
-function submitFeedback(){const box=document.getElementById('feedback-box');box.innerHTML=`<div class="feedback-sent">${T[lang].fbThanks}</div>`;setTimeout(()=>{feedbackOpen=false;box.classList.remove('open');box.innerHTML=`<h4>${lang==='zh'?'使用体验如何？':"How's your experience?"}</h4><div class="feedback-stars">${[1,2,3,4,5].map(i=>`<button class="star-btn" onclick="rateStar(${i})">★</button>`).join('')}</div><textarea id="fb-text" placeholder="${T[lang].fbPlaceholder}"></textarea><button class="btn-primary" style="width:100%" onclick="submitFeedback()">${lang==='zh'?'提交回馈':'Submit Feedback'}</button>`;selectedStars=0;},2500);}
+function submitFeedback() {
+  const stars = selectedStars;
+  const text = document.getElementById('fb-text').value;
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbxqs0z1SjkSERvVo2gjkpwL_TTfFE98VdqRpCSRybhTojUo3-JGEAReG0eNEVfiN0mgvA/exec';  
+  
+  fetch(webAppUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      stars: stars,
+      feedback: text,
+      userAgent: navigator.userAgent
+    })
+  }).then(response => {
+    if (response.ok) {
+      const box = document.getElementById('feedback-box');
+      box.innerHTML = `<div class="feedback-sent">${T[lang].fbThanks}</div>`;
+      setTimeout(() => {
+        feedbackOpen = false;
+        box.classList.remove('open');
+        resetFeedbackBox();
+      }, 2500);
+    }
+  }).catch(error => {
+    console.error('Error:', error);
+    alert('提交失败，请重试');
+  });
+}
+
+function resetFeedbackBox() {
+  const box = document.getElementById('feedback-box');
+  box.innerHTML = `
+    <h4 id="fb-title" data-zh="使用体验如何？" data-en="How's your experience?">使用体验如何？</h4>
+    <div class="feedback-stars" id="fb-stars">
+      <button class="star-btn" onclick="rateStar(1)">★</button>
+      <button class="star-btn" onclick="rateStar(2)">★</button>
+      <button class="star-btn" onclick="rateStar(3)">★</button>
+      <button class="star-btn" onclick="rateStar(4)">★</button>
+      <button class="star-btn" onclick="rateStar(5)">★</button>
+    </div>
+    <textarea id="fb-text" placeholder="有什么建议或遇到的问题？（选填）"></textarea>
+    <button class="btn-primary" style="width:100%" onclick="submitFeedback()" id="fb-submit" data-zh="提交回馈" data-en="Submit Feedback">提交回馈</button>
+  `;
+  selectedStars = 0;
+  document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
+}
+
 
 setLang('en');updateApiBanner();renderStats();renderJobs();renderNotes();
 </script>
