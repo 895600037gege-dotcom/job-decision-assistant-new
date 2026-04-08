@@ -100,7 +100,8 @@
   .dots span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes bounce { 0%,80%,100%{transform:scale(0.7);opacity:0.5} 40%{transform:scale(1);opacity:1} }
   .notes-list { display: flex; flex-direction: column; gap: 14px; }
-  .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+  .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; transition: border-color 0.2s; }
+  .note-card:hover { border-color: var(--border2); }
   .note-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
   .note-job-ref { font-size: 12px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; }
   .note-date { font-size: 12px; color: var(--text3); }
@@ -108,6 +109,8 @@
   .note-body { font-size: 14px; line-height: 1.6; color: var(--text2); white-space: pre-line; }
   .note-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .note-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); color: var(--text2); }
+  /* Note card actions */
+  .note-card-actions { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px; }
   .api-banner { background: var(--warning-light); border: 1px solid #F9D9A8; border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; font-size: 13px; color: var(--warning); flex-wrap: wrap; }
   .api-banner input { flex: 1; min-width: 180px; background: #fff; border: 1px solid #F9D9A8; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: var(--font-body); color: var(--text); outline: none; }
   .api-banner button { background: var(--warning); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-family: var(--font-body); cursor: pointer; white-space: nowrap; }
@@ -203,16 +206,17 @@
       <div class="form-group full"><label class="form-label" data-zh="备注" data-en="Notes">备注</label><textarea class="form-textarea" id="inp-notes-inline" placeholder="内推来源、联系人、注意事项..."></textarea></div>
     </div>
     <div class="form-footer">
-  <button class="btn-secondary" onclick="closeModal('modal-job')" data-zh="取消" data-en="Cancel">取消</button>
-  <button class="btn-primary" onclick="saveJob()" data-zh="保存岗位" data-en="Save">保存岗位</button>
-</div>
+      <button class="btn-secondary" onclick="closeModal('modal-job')" data-zh="取消" data-en="Cancel">取消</button>
+      <button class="btn-primary" onclick="saveJob()" data-zh="保存岗位" data-en="Save">保存岗位</button>
+    </div>
   </div>
 </div>
 
+<!-- Note Modal (Add & Edit) -->
 <div class="modal-overlay" id="modal-note">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-note')">✕</button>
-    <h2 class="modal-title" data-zh="面试笔记" data-en="Interview Note">面试笔记</h2>
+    <h2 class="modal-title" id="modal-note-title" data-zh="面试笔记" data-en="Interview Note">面试笔记</h2>
     <div class="form-row">
       <div class="form-group"><label class="form-label" data-zh="关联岗位" data-en="Linked Job">关联岗位</label><select class="form-select" id="inp-note-job"></select></div>
       <div class="form-group"><label class="form-label" data-zh="面试轮次" data-en="Interview Round">面试轮次</label><input type="text" class="form-input" id="inp-note-round" placeholder="e.g. 一面 / HR面 / Final"></div>
@@ -220,9 +224,9 @@
       <div class="form-group full"><label class="form-label" data-zh="标签（逗号分隔）" data-en="Tags (comma separated)">标签（逗号分隔）</label><input type="text" class="form-input" id="inp-note-tags" placeholder="e.g. 算法题, 行为面试, 薪资谈判"></div>
     </div>
     <div class="form-footer">
-  <button class="btn-secondary" onclick="closeModal('modal-note')" data-zh="取消" data-en="Cancel">取消</button>
-  <button class="btn-primary" onclick="saveNote()" data-zh="保存笔记" data-en="Save">保存笔记</button>
-   </div>
+      <button class="btn-secondary" onclick="closeModal('modal-note')" data-zh="取消" data-en="Cancel">取消</button>
+      <button class="btn-primary" onclick="saveNote()" id="btn-save-note" data-zh="保存笔记" data-en="Save">保存笔记</button>
+    </div>
   </div>
 </div>
 
@@ -239,8 +243,8 @@
 </div>
 
 <script>
-let lang='en',jobs=JSON.parse(localStorage.getItem('jda_jobs')||'[]'),notes=JSON.parse(localStorage.getItem('jda_notes')||'[]'),editingJobId=null,feedbackOpen=false,selectedStars=0,apiKey=localStorage.getItem('jda_api_key')||'';
-const T={zh:{total:'全部申请',interviews:'面试中',offers:'已拿Offer',notesCount:'面试笔记',noJobs:'还没有添加岗位',noJobsSub:'点击右上角开始记录你的第一个申请',noNotes:'还没有面试笔记',noNotesSub:'完成面试后在这里记录',addFirst:'+ 添加第一个岗位',stages:{screening:'初步筛选',interview:'面试中',offer:'Offer',rejected:'未通过'},edit:'编辑',analyze:'AI分析',del:'删除',aiError:'分析失败，请检查 API Key 是否正确。',noKey:'请先输入 API Key 再使用 AI 分析。',fbPlaceholder:'有什么建议或遇到的问题？（选填）',fbThanks:'谢谢你的回馈！ ✓'},en:{total:'Total',interviews:'Interviews',offers:'Offers',notesCount:'Notes',noJobs:'No jobs added yet',noJobsSub:'Click the button to add your first application',noNotes:'No interview notes yet',noNotesSub:'Record notes after each interview',addFirst:'+ Add First Job',stages:{screening:'Screening',interview:'Interview',offer:'Offer',rejected:'Rejected'},edit:'Edit',analyze:'AI Analyze',del:'Delete',aiError:'Analysis failed. Check your API key.',noKey:'Please enter your API Key to use AI analysis.',fbPlaceholder:'Any suggestions or issues? (optional)',fbThanks:'Thanks for your feedback! ✓'}};
+let lang='en',jobs=JSON.parse(localStorage.getItem('jda_jobs')||'[]'),notes=JSON.parse(localStorage.getItem('jda_notes')||'[]'),editingJobId=null,editingNoteId=null,feedbackOpen=false,selectedStars=0,apiKey=localStorage.getItem('jda_api_key')||'';
+const T={zh:{total:'全部申请',interviews:'面试中',offers:'已拿Offer',notesCount:'面试笔记',noJobs:'还没有添加岗位',noJobsSub:'点击右上角开始记录你的第一个申请',noNotes:'还没有面试笔记',noNotesSub:'完成面试后在这里记录',addFirst:'+ 添加第一个岗位',stages:{screening:'初步筛选',interview:'面试中',offer:'Offer',rejected:'未通过'},edit:'编辑',analyze:'AI分析',del:'删除',editNote:'编辑',delNote:'删除',addNoteTitle:'面试笔记',editNoteTitle:'编辑笔记',saveNote:'保存笔记',aiError:'分析失败，请检查 API Key 是否正确。',noKey:'请先输入 API Key 再使用 AI 分析。',fbPlaceholder:'有什么建议或遇到的问题？（选填）',fbThanks:'谢谢你的回馈！ ✓'},en:{total:'Total',interviews:'Interviews',offers:'Offers',notesCount:'Notes',noJobs:'No jobs added yet',noJobsSub:'Click the button to add your first application',noNotes:'No interview notes yet',noNotesSub:'Record notes after each interview',addFirst:'+ Add First Job',stages:{screening:'Screening',interview:'Interview',offer:'Offer',rejected:'Rejected'},edit:'Edit',analyze:'AI Analyze',del:'Delete',editNote:'Edit',delNote:'Delete',addNoteTitle:'Interview Note',editNoteTitle:'Edit Note',saveNote:'Save Note',aiError:'Analysis failed. Check your API key.',noKey:'Please enter your API Key to use AI analysis.',fbPlaceholder:'Any suggestions or issues? (optional)',fbThanks:'Thanks for your feedback! ✓'}};
 
 function setLang(l){lang=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',(l==='zh'&&b.textContent==='中文')||(l==='en'&&b.textContent==='EN')));document.querySelectorAll('[data-zh]').forEach(el=>{if(el.tagName==='INPUT'&&el.type!=='button')return;el.textContent=el.dataset[l];});
    const mainTitle = document.getElementById('main-title');
@@ -276,9 +280,105 @@ function saveJob(){const company=document.getElementById('inp-company').value.tr
 function deleteJob(id){if(!confirm(lang==='zh'?'确定删除此岗位及相关笔记？':'Delete this job and its notes?'))return;jobs=jobs.filter(j=>j.id!==id);notes=notes.filter(n=>n.jobId!==id);saveToStorage();renderStats();renderJobs();renderNotes();}
 function renderStats(){const t=T[lang];document.getElementById('stats-bar').innerHTML=`<div class="stat-card"><div class="stat-num">${jobs.length}</div><div class="stat-label">${t.total}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='interview').length}</div><div class="stat-label">${t.interviews}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='offer').length}</div><div class="stat-label">${t.offers}</div></div><div class="stat-card"><div class="stat-num">${notes.length}</div><div class="stat-label">${t.notesCount}</div></div>`;}
 function renderJobs(){const t=T[lang],grid=document.getElementById('jobs-grid');if(jobs.length===0){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><h3>${t.noJobs}</h3><p>${t.noJobsSub}</p><button class="btn-primary" onclick="openJobModal()">${t.addFirst}</button></div>`;return;}grid.innerHTML=jobs.map(j=>`<div class="job-card"><div class="job-card-company">${j.company}</div><div class="job-card-title">${j.position}</div><div class="job-card-meta"><span class="pill pill-stage ${j.stage}">${t.stages[j.stage]}</span>${j.location?`<span class="pill pill-loc">${j.location}</span>`:''}</div>${j.salary?`<div class="job-card-salary">${j.salary}</div>`:''}<div class="job-card-actions"><button class="btn-sm" onclick="openJobModal('${j.id}')">${t.edit}</button><button class="btn-sm ai" onclick="runAI('${j.id}')">${t.analyze}</button><button class="btn-sm danger" onclick="deleteJob('${j.id}')">${t.del}</button></div></div>`).join('');}
-function openNoteModal(){const sel=document.getElementById('inp-note-job');if(jobs.length===0){alert(lang==='zh'?'请先添加一个岗位再记录笔记。':'Please add a job first.');return;}sel.innerHTML=jobs.map(j=>`<option value="${j.id}">${j.company} — ${j.position}</option>`).join('');['note-round','note-content','note-tags'].forEach(f=>document.getElementById('inp-'+f).value='');document.getElementById('modal-note').classList.add('open');}
-function saveNote(){const content=document.getElementById('inp-note-content').value.trim();if(!content)return;notes.unshift({id:Date.now().toString(),jobId:document.getElementById('inp-note-job').value,round:document.getElementById('inp-note-round').value.trim()||(lang==='zh'?'面试记录':'Interview'),content,tags:document.getElementById('inp-note-tags').value.split(',').map(s=>s.trim()).filter(Boolean),date:new Date().toLocaleDateString(lang==='zh'?'zh-CN':'en-US')});saveToStorage();closeModal('modal-note');renderStats();renderNotes();}
-function renderNotes(){const t=T[lang],list=document.getElementById('notes-list');if(notes.length===0){list.innerHTML=`<div class="empty-state"><h3>${t.noNotes}</h3><p>${t.noNotesSub}</p></div>`;return;}list.innerHTML=notes.map(n=>{const j=jobs.find(x=>x.id===n.jobId),ref=j?`${j.company} — ${j.position}`:(lang==='zh'?'已删除岗位':'Deleted job');return`<div class="note-card"><div class="note-card-header"><div class="note-job-ref">${ref}</div><div class="note-date">${n.date}</div></div><div class="note-round">${n.round}</div><div class="note-body">${n.content}</div>${n.tags.length?`<div class="note-tags">${n.tags.map(tag=>`<span class="note-tag">${tag}</span>`).join('')}</div>`:''}</div>`;}).join('');}
+
+function openNoteModal(id){
+  editingNoteId = id || null;
+  const t = T[lang];
+  const sel = document.getElementById('inp-note-job');
+
+  if (jobs.length === 0) {
+    alert(lang === 'zh' ? '请先添加一个岗位再记录笔记。' : 'Please add a job first.');
+    return;
+  }
+
+  sel.innerHTML = jobs.map(j => `<option value="${j.id}">${j.company} — ${j.position}</option>`).join('');
+
+  if (id) {
+    // Edit mode: pre-fill fields
+    const n = notes.find(x => x.id === id);
+    if (!n) return;
+    sel.value = n.jobId;
+    document.getElementById('inp-note-round').value = n.round || '';
+    document.getElementById('inp-note-content').value = n.content || '';
+    document.getElementById('inp-note-tags').value = (n.tags || []).join(', ');
+    document.getElementById('modal-note-title').textContent = t.editNoteTitle;
+    document.getElementById('btn-save-note').textContent = t.saveNote;
+  } else {
+    // Add mode: clear fields
+    ['note-round', 'note-content', 'note-tags'].forEach(f => document.getElementById('inp-' + f).value = '');
+    document.getElementById('modal-note-title').textContent = t.addNoteTitle;
+    document.getElementById('btn-save-note').textContent = t.saveNote;
+  }
+
+  document.getElementById('modal-note').classList.add('open');
+}
+
+function saveNote(){
+  const content = document.getElementById('inp-note-content').value.trim();
+  if (!content) return;
+
+  if (editingNoteId) {
+    // Update existing note
+    const idx = notes.findIndex(x => x.id === editingNoteId);
+    if (idx !== -1) {
+      notes[idx] = {
+        ...notes[idx],
+        jobId: document.getElementById('inp-note-job').value,
+        round: document.getElementById('inp-note-round').value.trim() || (lang === 'zh' ? '面试记录' : 'Interview'),
+        content,
+        tags: document.getElementById('inp-note-tags').value.split(',').map(s => s.trim()).filter(Boolean)
+      };
+    }
+  } else {
+    // Add new note
+    notes.unshift({
+      id: Date.now().toString(),
+      jobId: document.getElementById('inp-note-job').value,
+      round: document.getElementById('inp-note-round').value.trim() || (lang === 'zh' ? '面试记录' : 'Interview'),
+      content,
+      tags: document.getElementById('inp-note-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+      date: new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US')
+    });
+  }
+
+  saveToStorage();
+  closeModal('modal-note');
+  renderStats();
+  renderNotes();
+}
+
+function deleteNote(id) {
+  if (!confirm(lang === 'zh' ? '确定删除此笔记？' : 'Delete this note?')) return;
+  notes = notes.filter(n => n.id !== id);
+  saveToStorage();
+  renderStats();
+  renderNotes();
+}
+
+function renderNotes(){
+  const t = T[lang], list = document.getElementById('notes-list');
+  if (notes.length === 0) {
+    list.innerHTML = `<div class="empty-state"><h3>${t.noNotes}</h3><p>${t.noNotesSub}</p></div>`;
+    return;
+  }
+  list.innerHTML = notes.map(n => {
+    const j = jobs.find(x => x.id === n.jobId);
+    const ref = j ? `${j.company} — ${j.position}` : (lang === 'zh' ? '已删除岗位' : 'Deleted job');
+    return `<div class="note-card">
+      <div class="note-card-header">
+        <div class="note-job-ref">${ref}</div>
+        <div class="note-date">${n.date}</div>
+      </div>
+      <div class="note-round">${n.round}</div>
+      <div class="note-body">${n.content}</div>
+      ${n.tags.length ? `<div class="note-tags">${n.tags.map(tag => `<span class="note-tag">${tag}</span>`).join('')}</div>` : ''}
+      <div class="note-card-actions">
+        <button class="btn-sm" onclick="openNoteModal('${n.id}')">${t.editNote}</button>
+        <button class="btn-sm danger" onclick="deleteNote('${n.id}')">${t.delNote}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 async function runAI(jobId){if(!apiKey){alert(T[lang].noKey);return;}const job=jobs.find(j=>j.id===jobId);if(!job)return;document.getElementById('ai-panel-job-name').textContent=`${job.company} · ${job.position}`;document.getElementById('ai-loading').style.display='flex';document.getElementById('ai-result').style.display='none';document.getElementById('modal-ai').classList.add('open');const prompt=lang==='zh'?`你是专业求职顾问，分析这个岗位的潜在风险。\n公司：${job.company}\n岗位：${job.position}\n地点：${job.location||'未知'}\n薪资：${job.salary||'未知'}\nJD：${job.jd||'未提供，根据公司和岗位名称推测'}\n备注：${job.notes||'无'}\n\n只返回以下JSON，不要额外文字：\n{"risks":[{"level":"red","title":"高风险雷区","text":"说明"},{"level":"amber","title":"需要关注","text":"说明"},{"level":"green","title":"积极信号","text":"说明"}],"verdict":"综合决策建议（2-3句）"}`:`You are a career advisor. Analyze this job.\nCompany:${job.company}\nPosition:${job.position}\nLocation:${job.location||'Unknown'}\nSalary:${job.salary||'Unknown'}\nJD:${job.jd||'Not provided'}\nNotes:${job.notes||'None'}\n\nReturn ONLY JSON:\n{"risks":[{"level":"red","title":"High Risk","text":"..."},{"level":"amber","title":"Watch Out","text":"..."},{"level":"green","title":"Positive","text":"..."}],"verdict":"Recommendation (2-3 sentences)"}`;
 try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await res.json();const raw=data.content.map(i=>i.text||'').join('');const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());document.getElementById('ai-result').innerHTML=`<div class="risk-grid">${parsed.risks.map(r=>`<div class="risk-item ${r.level}"><div class="risk-label">${r.title}</div><div class="risk-text">${r.text}</div></div>`).join('')}</div><div class="ai-verdict"><strong>${lang==='zh'?'综合建议：':'Verdict: '}</strong>${parsed.verdict}</div>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}catch(e){document.getElementById('ai-result').innerHTML=`<p style="color:var(--danger);font-size:14px;padding:16px 0;">${T[lang].aiError}</p>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}}
@@ -299,7 +399,6 @@ function submitFeedback() {
   submitBtn.textContent = lang === 'zh' ? '提交中...' : 'Submitting...';
   submitBtn.disabled = true;
 
-  // Use URLSearchParams to avoid CORS preflight issues with Google Apps Script
   const params = new URLSearchParams();
   params.append('stars', stars);
   params.append('feedback', text);
@@ -307,7 +406,7 @@ function submitFeedback() {
 
   fetch(webAppUrl, {
     method: 'POST',
-    body: params   // sends as application/x-www-form-urlencoded, no preflight
+    body: params
   })
   .then(response => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -316,15 +415,8 @@ function submitFeedback() {
   .then(data => {
     if (data.status === 'success') {
       const feedbackBox = document.getElementById('feedback-box');
-      feedbackBox.innerHTML = `
-        <div class="feedback-sent">
-          ${lang === 'zh' ? '✓ 谢谢你的反馈！' : '✓ Thanks for your feedback!'}
-        </div>
-      `;
-      setTimeout(() => {
-        resetFeedbackBox();
-        toggleFeedback();
-      }, 2000);
+      feedbackBox.innerHTML = `<div class="feedback-sent">${lang === 'zh' ? '✓ 谢谢你的反馈！' : '✓ Thanks for your feedback!'}</div>`;
+      setTimeout(() => { resetFeedbackBox(); toggleFeedback(); }, 2000);
     } else {
       throw new Error('Invalid response');
     }
@@ -332,11 +424,7 @@ function submitFeedback() {
   .catch(error => {
     console.error('Error details:', error);
     const feedbackBox = document.getElementById('feedback-box');
-    feedbackBox.innerHTML = `
-      <div class="feedback-sent" style="color: var(--danger);">
-        ${lang === 'zh' ? '✗ 提交失败，请稍后重试' : '✗ Submission failed, please try again'}
-      </div>
-    `;
+    feedbackBox.innerHTML = `<div class="feedback-sent" style="color: var(--danger);">${lang === 'zh' ? '✗ 提交失败，请稍后重试' : '✗ Submission failed, please try again'}</div>`;
     setTimeout(() => resetFeedbackBox(), 2000);
   });
 }
@@ -358,7 +446,6 @@ function resetFeedbackBox() {
   selectedStars = 0;
   document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
 }
-
 
 setLang('en');updateApiBanner();renderStats();renderJobs();renderNotes();
 </script>
