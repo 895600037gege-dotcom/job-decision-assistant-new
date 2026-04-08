@@ -204,6 +204,11 @@
       <div class="form-group"><label class="form-label" data-zh="申请日期" data-en="Applied Date">申请日期</label><input type="date" class="form-input" id="inp-date"></div>
       <div class="form-group full"><label class="form-label" data-zh="岗位描述 JD（供 AI 分析）" data-en="Job Description (for AI analysis)">岗位描述 JD（供 AI 分析）</label><textarea class="form-textarea" id="inp-jd" style="min-height:100px" placeholder="粘贴JD原文，AI将帮你分析潜在风险和雷区..."></textarea></div>
       <div class="form-group full"><label class="form-label" data-zh="备注" data-en="Notes">备注</label><textarea class="form-textarea" id="inp-notes-inline" placeholder="内推来源、联系人、注意事项..."></textarea></div>
+      <div class="form-group full" id="ai-analysis-section" style="display:none;">
+        <label class="form-label" id="ai-analysis-label">AI Analysis</label>
+        <div id="ai-analysis-display" style="background:var(--accent-light);border:1px solid rgba(45,74,62,0.18);border-radius:var(--radius);padding:14px 16px;font-size:13px;line-height:1.65;color:var(--accent-text);white-space:pre-wrap;"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button class="btn-sm danger" style="flex:none;padding:5px 14px;" onclick="clearAIAnalysis()" id="btn-clear-ai">🗑 Clear</button></div>
+      </div>
     </div>
     <div class="form-footer">
       <button class="btn-secondary" onclick="closeModal('modal-job')" data-zh="取消" data-en="Cancel">取消</button>
@@ -243,7 +248,7 @@
 </div>
 
 <script>
-let lang='en',jobs=JSON.parse(localStorage.getItem('jda_jobs')||'[]'),notes=JSON.parse(localStorage.getItem('jda_notes')||'[]'),editingJobId=null,editingNoteId=null,feedbackOpen=false,selectedStars=0,apiKey=localStorage.getItem('jda_api_key')||'';
+let lang='en',jobs=JSON.parse(localStorage.getItem('jda_jobs')||'[]'),notes=JSON.parse(localStorage.getItem('jda_notes')||'[]'),editingJobId=null,editingNoteId=null,feedbackOpen=false,selectedStars=0,apiKey=localStorage.getItem('jda_api_key')||'',currentAIJobId=null,currentAIParsed=null;
 const T={zh:{total:'全部申请',interviews:'面试中',offers:'已拿Offer',notesCount:'面试笔记',noJobs:'还没有添加岗位',noJobsSub:'点击右上角开始记录你的第一个申请',noNotes:'还没有面试笔记',noNotesSub:'完成面试后在这里记录',addFirst:'+ 添加第一个岗位',stages:{screening:'初步筛选',interview:'面试中',offer:'Offer',rejected:'未通过'},edit:'编辑',analyze:'AI分析',del:'删除',editNote:'编辑',delNote:'删除',addNoteTitle:'面试笔记',editNoteTitle:'编辑笔记',saveNote:'保存笔记',aiError:'分析失败，请检查 API Key 是否正确。',noKey:'请先输入 API Key 再使用 AI 分析。',fbPlaceholder:'有什么建议或遇到的问题？（选填）',fbThanks:'谢谢你的回馈！ ✓'},en:{total:'Total',interviews:'Interviews',offers:'Offers',notesCount:'Notes',noJobs:'No jobs added yet',noJobsSub:'Click the button to add your first application',noNotes:'No interview notes yet',noNotesSub:'Record notes after each interview',addFirst:'+ Add First Job',stages:{screening:'Screening',interview:'Interview',offer:'Offer',rejected:'Rejected'},edit:'Edit',analyze:'AI Analyze',del:'Delete',editNote:'Edit',delNote:'Delete',addNoteTitle:'Interview Note',editNoteTitle:'Edit Note',saveNote:'Save Note',aiError:'Analysis failed. Check your API key.',noKey:'Please enter your API Key to use AI analysis.',fbPlaceholder:'Any suggestions or issues? (optional)',fbThanks:'Thanks for your feedback! ✓'}};
 
 function setLang(l){lang=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',(l==='zh'&&b.textContent==='中文')||(l==='en'&&b.textContent==='EN')));document.querySelectorAll('[data-zh]').forEach(el=>{if(el.tagName==='INPUT'&&el.type!=='button')return;el.textContent=el.dataset[l];});
@@ -274,9 +279,57 @@ function saveApiKey(){const v=document.getElementById('api-key-input')?.value?.t
 function clearApiKey(){apiKey='';localStorage.removeItem('jda_api_key');updateApiBanner();}
 function switchTab(t){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('panel-'+t).classList.add('active');document.getElementById('tab-'+t).classList.add('active');}
 function saveToStorage(){localStorage.setItem('jda_jobs',JSON.stringify(jobs));localStorage.setItem('jda_notes',JSON.stringify(notes));}
-function openJobModal(id){editingJobId=id||null;if(id){const j=jobs.find(x=>x.id===id);document.getElementById('inp-company').value=j.company;document.getElementById('inp-position').value=j.position;document.getElementById('inp-location').value=j.location||'';document.getElementById('inp-salary').value=j.salary||'';document.getElementById('inp-stage').value=j.stage;document.getElementById('inp-date').value=j.date||'';document.getElementById('inp-jd').value=j.jd||'';document.getElementById('inp-notes-inline').value=j.notes||'';document.getElementById('modal-job-title').textContent=lang==='zh'?'编辑岗位':'Edit Job';}else{['company','position','location','salary','jd','notes-inline'].forEach(f=>document.getElementById('inp-'+f).value='');document.getElementById('inp-stage').value='screening';document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];document.getElementById('modal-job-title').textContent=lang==='zh'?'添加岗位':'Add Job';}document.getElementById('modal-job').classList.add('open');}
+function openJobModal(id){
+  editingJobId=id||null;
+  const aiSection=document.getElementById('ai-analysis-section');
+  const aiDisplay=document.getElementById('ai-analysis-display');
+  const aiLabel=document.getElementById('ai-analysis-label');
+  if(id){
+    const j=jobs.find(x=>x.id===id);
+    document.getElementById('inp-company').value=j.company;
+    document.getElementById('inp-position').value=j.position;
+    document.getElementById('inp-location').value=j.location||'';
+    document.getElementById('inp-salary').value=j.salary||'';
+    document.getElementById('inp-stage').value=j.stage;
+    document.getElementById('inp-date').value=j.date||'';
+    document.getElementById('inp-jd').value=j.jd||'';
+    document.getElementById('inp-notes-inline').value=j.notes||'';
+    document.getElementById('modal-job-title').textContent=lang==='zh'?'编辑岗位':'Edit Job';
+    if(j.aiAnalysis){
+      aiLabel.textContent=lang==='zh'?'AI 分析结果（'+j.aiAnalysis.date+'）':'AI Analysis ('+j.aiAnalysis.date+')';
+      aiDisplay.textContent=j.aiAnalysis.text;
+      document.getElementById('btn-clear-ai').textContent=lang==='zh'?'🗑 清除分析':'🗑 Clear Analysis';
+      aiSection.style.display='block';
+    } else {
+      aiSection.style.display='none';
+    }
+  } else {
+    ['company','position','location','salary','jd','notes-inline'].forEach(f=>document.getElementById('inp-'+f).value='');
+    document.getElementById('inp-stage').value='screening';
+    document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+    document.getElementById('modal-job-title').textContent=lang==='zh'?'添加岗位':'Add Job';
+    aiSection.style.display='none';
+  }
+  document.getElementById('modal-job').classList.add('open');
+}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-function saveJob(){const company=document.getElementById('inp-company').value.trim(),position=document.getElementById('inp-position').value.trim();if(!company||!position)return;const job={id:editingJobId||Date.now().toString(),company,position,location:document.getElementById('inp-location').value.trim(),salary:document.getElementById('inp-salary').value.trim(),stage:document.getElementById('inp-stage').value,date:document.getElementById('inp-date').value,jd:document.getElementById('inp-jd').value.trim(),notes:document.getElementById('inp-notes-inline').value.trim()};if(editingJobId){const idx=jobs.findIndex(x=>x.id===editingJobId);jobs[idx]=job;}else{jobs.unshift(job);}saveToStorage();closeModal('modal-job');renderStats();renderJobs();}
+function saveJob(){
+  const company=document.getElementById('inp-company').value.trim(),position=document.getElementById('inp-position').value.trim();
+  if(!company||!position)return;
+  const existing=editingJobId?jobs.find(x=>x.id===editingJobId):null;
+  const job={id:editingJobId||Date.now().toString(),company,position,location:document.getElementById('inp-location').value.trim(),salary:document.getElementById('inp-salary').value.trim(),stage:document.getElementById('inp-stage').value,date:document.getElementById('inp-date').value,jd:document.getElementById('inp-jd').value.trim(),notes:document.getElementById('inp-notes-inline').value.trim(),aiAnalysis:existing?.aiAnalysis||null};
+  if(editingJobId){const idx=jobs.findIndex(x=>x.id===editingJobId);jobs[idx]=job;}else{jobs.unshift(job);}
+  saveToStorage();closeModal('modal-job');renderStats();renderJobs();
+}
+function clearAIAnalysis(){
+  if(!editingJobId)return;
+  const idx=jobs.findIndex(x=>x.id===editingJobId);
+  if(idx!==-1){jobs[idx].aiAnalysis=null;saveToStorage();renderJobs();}
+  const section=document.getElementById('ai-analysis-section');
+  section.style.transition='opacity 0.3s';
+  section.style.opacity='0';
+  setTimeout(()=>{section.style.display='none';section.style.opacity='1';section.style.transition='';},300);
+}
 function deleteJob(id){if(!confirm(lang==='zh'?'确定删除此岗位及相关笔记？':'Delete this job and its notes?'))return;jobs=jobs.filter(j=>j.id!==id);notes=notes.filter(n=>n.jobId!==id);saveToStorage();renderStats();renderJobs();renderNotes();}
 function renderStats(){const t=T[lang];document.getElementById('stats-bar').innerHTML=`<div class="stat-card"><div class="stat-num">${jobs.length}</div><div class="stat-label">${t.total}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='interview').length}</div><div class="stat-label">${t.interviews}</div></div><div class="stat-card"><div class="stat-num">${jobs.filter(j=>j.stage==='offer').length}</div><div class="stat-label">${t.offers}</div></div><div class="stat-card"><div class="stat-num">${notes.length}</div><div class="stat-label">${t.notesCount}</div></div>`;}
 function renderJobs(){const t=T[lang],grid=document.getElementById('jobs-grid');if(jobs.length===0){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><h3>${t.noJobs}</h3><p>${t.noJobsSub}</p><button class="btn-primary" onclick="openJobModal()">${t.addFirst}</button></div>`;return;}grid.innerHTML=jobs.map(j=>`<div class="job-card"><div class="job-card-company">${j.company}</div><div class="job-card-title">${j.position}</div><div class="job-card-meta"><span class="pill pill-stage ${j.stage}">${t.stages[j.stage]}</span>${j.location?`<span class="pill pill-loc">${j.location}</span>`:''}</div>${j.salary?`<div class="job-card-salary">${j.salary}</div>`:''}<div class="job-card-actions"><button class="btn-sm" onclick="openJobModal('${j.id}')">${t.edit}</button><button class="btn-sm ai" onclick="runAI('${j.id}')">${t.analyze}</button><button class="btn-sm danger" onclick="deleteJob('${j.id}')">${t.del}</button></div></div>`).join('');}
@@ -380,8 +433,22 @@ function renderNotes(){
   }).join('');
 }
 
-async function runAI(jobId){if(!apiKey){alert(T[lang].noKey);return;}const job=jobs.find(j=>j.id===jobId);if(!job)return;document.getElementById('ai-panel-job-name').textContent=`${job.company} · ${job.position}`;document.getElementById('ai-loading').style.display='flex';document.getElementById('ai-result').style.display='none';document.getElementById('modal-ai').classList.add('open');const prompt=lang==='zh'?`你是专业求职顾问，分析这个岗位的潜在风险。\n公司：${job.company}\n岗位：${job.position}\n地点：${job.location||'未知'}\n薪资：${job.salary||'未知'}\nJD：${job.jd||'未提供，根据公司和岗位名称推测'}\n备注：${job.notes||'无'}\n\n只返回以下JSON，不要额外文字：\n{"risks":[{"level":"red","title":"高风险雷区","text":"说明"},{"level":"amber","title":"需要关注","text":"说明"},{"level":"green","title":"积极信号","text":"说明"}],"verdict":"综合决策建议（2-3句）"}`:`You are a career advisor. Analyze this job.\nCompany:${job.company}\nPosition:${job.position}\nLocation:${job.location||'Unknown'}\nSalary:${job.salary||'Unknown'}\nJD:${job.jd||'Not provided'}\nNotes:${job.notes||'None'}\n\nReturn ONLY JSON:\n{"risks":[{"level":"red","title":"High Risk","text":"..."},{"level":"amber","title":"Watch Out","text":"..."},{"level":"green","title":"Positive","text":"..."}],"verdict":"Recommendation (2-3 sentences)"}`;
-try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await res.json();const raw=data.content.map(i=>i.text||'').join('');const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());document.getElementById('ai-result').innerHTML=`<div class="risk-grid">${parsed.risks.map(r=>`<div class="risk-item ${r.level}"><div class="risk-label">${r.title}</div><div class="risk-text">${r.text}</div></div>`).join('')}</div><div class="ai-verdict"><strong>${lang==='zh'?'综合建议：':'Verdict: '}</strong>${parsed.verdict}</div>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}catch(e){document.getElementById('ai-result').innerHTML=`<p style="color:var(--danger);font-size:14px;padding:16px 0;">${T[lang].aiError}</p>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}}
+async function runAI(jobId){if(!apiKey){alert(T[lang].noKey);return;}const job=jobs.find(j=>j.id===jobId);if(!job)return;currentAIJobId=jobId;currentAIParsed=null;document.getElementById('ai-panel-job-name').textContent=`${job.company} · ${job.position}`;document.getElementById('ai-loading').style.display='flex';document.getElementById('ai-result').style.display='none';document.getElementById('modal-ai').classList.add('open');const prompt=lang==='zh'?`你是专业求职顾问，分析这个岗位的潜在风险。\n公司：${job.company}\n岗位：${job.position}\n地点：${job.location||'未知'}\n薪资：${job.salary||'未知'}\nJD：${job.jd||'未提供，根据公司和岗位名称推测'}\n备注：${job.notes||'无'}\n\n只返回以下JSON，不要额外文字：\n{"risks":[{"level":"red","title":"高风险雷区","text":"说明"},{"level":"amber","title":"需要关注","text":"说明"},{"level":"green","title":"积极信号","text":"说明"}],"verdict":"综合决策建议（2-3句）"}`:`You are a career advisor. Analyze this job.\nCompany:${job.company}\nPosition:${job.position}\nLocation:${job.location||'Unknown'}\nSalary:${job.salary||'Unknown'}\nJD:${job.jd||'Not provided'}\nNotes:${job.notes||'None'}\n\nReturn ONLY JSON:\n{"risks":[{"level":"red","title":"High Risk","text":"..."},{"level":"amber","title":"Watch Out","text":"..."},{"level":"green","title":"Positive","text":"..."}],"verdict":"Recommendation (2-3 sentences)"}`;
+try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const data=await res.json();const raw=data.content.map(i=>i.text||'').join('');const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());currentAIParsed=parsed;const saveLabel=lang==='zh'?'💾 保存到岗位详情':'💾 Save to Job';document.getElementById('ai-result').innerHTML=`<div class="risk-grid">${parsed.risks.map(r=>`<div class="risk-item ${r.level}"><div class="risk-label">${r.title}</div><div class="risk-text">${r.text}</div></div>`).join('')}</div><div class="ai-verdict"><strong>${lang==='zh'?'综合建议：':'Verdict: '}</strong>${parsed.verdict}</div><div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;"><span style="font-size:12px;color:var(--text3);">${lang==='zh'?'保存后可在编辑岗位时查看':'Viewable in job Edit after saving'}</span><button class="btn-primary" id="btn-save-ai" onclick="saveAIResult()" style="font-size:13px;padding:9px 18px;">${saveLabel}</button></div>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}catch(e){document.getElementById('ai-result').innerHTML=`<p style="color:var(--danger);font-size:14px;padding:16px 0;">${T[lang].aiError}</p>`;document.getElementById('ai-loading').style.display='none';document.getElementById('ai-result').style.display='block';}}
+
+function saveAIResult(){
+  if(!currentAIJobId||!currentAIParsed)return;
+  const idx=jobs.findIndex(j=>j.id===currentAIJobId);
+  if(idx===-1)return;
+  const risksText=currentAIParsed.risks.map(r=>`[${r.title}]\n${r.text}`).join('\n\n');
+  const text=(lang==='zh'?'── 风险分析 ──\n':'── Risk Analysis ──\n')+risksText+'\n\n'+(lang==='zh'?'── 综合建议 ──\n':'── Verdict ──\n')+currentAIParsed.verdict;
+  jobs[idx].aiAnalysis={text,date:new Date().toLocaleDateString(lang==='zh'?'zh-CN':'en-US')};
+  saveToStorage();
+  renderJobs();
+  const btn=document.getElementById('btn-save-ai');
+  if(btn){btn.textContent=lang==='zh'?'✓ 已保存':'✓ Saved';btn.disabled=true;btn.style.opacity='0.65';}
+  setTimeout(()=>closeModal('modal-ai'),600);
+}
 
 function toggleFeedback(){feedbackOpen=!feedbackOpen;document.getElementById('feedback-box').classList.toggle('open',feedbackOpen);}
 function rateStar(n){selectedStars=n;document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<n));}
